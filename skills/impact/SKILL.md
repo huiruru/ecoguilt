@@ -9,15 +9,18 @@ Show the environmental impact of this coding session.
 
 ## Step 1: Find the session and get the numbers
 
-The status line writes state to `/tmp/ecoguilt-{session_id}.json`. `CLAUDE_SESSION_ID` may not be available in skill context, so find the active state file by most recent modification time:
+The status line writes state to `/tmp/ecoguilt-{session_id}.json` and a per-cwd pointer at `/tmp/ecoguilt-cwd-{hash}.txt`. Use the pointer to find the correct session for this working directory:
 
 ```bash
-STATE_FILE=$(ls -t /tmp/ecoguilt-*.json 2>/dev/null | grep -v 'models\|test\|recommend' | head -1); echo "STATE: $STATE_FILE"; cat "$STATE_FILE" 2>/dev/null || echo '{}'
-```
-
-Note the session ID from the filename — you'll need it for the recommendation file. Extract it:
-```bash
-SESSION_ID=$(echo "$STATE_FILE" | sed 's|/tmp/ecoguilt-||; s|\.json||')
+CWD_HASH=$(echo -n "$PWD" | md5 2>/dev/null || echo -n "$PWD" | md5sum 2>/dev/null | cut -d' ' -f1)
+SESSION_ID=$(cat "/tmp/ecoguilt-cwd-${CWD_HASH}.txt" 2>/dev/null)
+if [ -n "$SESSION_ID" ]; then
+  STATE_FILE="/tmp/ecoguilt-${SESSION_ID}.json"
+else
+  STATE_FILE=$(ls -t /tmp/ecoguilt-*.json 2>/dev/null | grep -v 'models\|test\|recommend\|cwd' | head -1)
+  SESSION_ID=$(echo "$STATE_FILE" | sed 's|/tmp/ecoguilt-||; s|\.json||')
+fi
+echo "STATE: $STATE_FILE"; cat "$STATE_FILE" 2>/dev/null || echo '{}'
 ```
 
 If the file is empty or missing, tell the user the status line hasn't recorded data yet.

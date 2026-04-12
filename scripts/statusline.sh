@@ -13,6 +13,7 @@ OUTPUT_TOKENS=$(echo "$INPUT" | jq -r '.context_window.total_output_tokens // 0'
 CURRENT_MODEL=$(echo "$INPUT" | jq -r '.model.id // "unknown"')
 SESSION_COST=$(echo "$INPUT" | jq -r '.cost.total_cost_usd // empty')
 INPUT_SESSION_ID=$(echo "$INPUT" | jq -r '.session_id // empty')
+INPUT_CWD=$(echo "$INPUT" | jq -r '.cwd // empty')
 
 TOTAL_TOKENS=$((INPUT_TOKENS + OUTPUT_TOKENS))
 
@@ -93,6 +94,12 @@ jq -n \
   --arg output_kwh_per_token "$CUR_OUT_KWH" \
   '{input_tokens: $input_tokens, output_tokens: $output_tokens, total_tokens: $total_tokens, total_kwh: $total_kwh, co2_g: $co2_g, water_ml: $water_ml, model: $model, cost_usd: $cost_usd, input_kwh_per_token: $input_kwh_per_token, output_kwh_per_token: $output_kwh_per_token}' \
   > "$STATE_FILE" 2>/dev/null || true
+
+# Write a per-cwd pointer so /impact finds the right session
+if [ -n "$INPUT_CWD" ]; then
+  CWD_HASH=$(echo -n "$INPUT_CWD" | md5 2>/dev/null || echo -n "$INPUT_CWD" | md5sum 2>/dev/null | cut -d' ' -f1)
+  echo "$SESSION_ID" > "/tmp/ecoguilt-cwd-${CWD_HASH}.txt" 2>/dev/null || true
+fi
 
 # --- Clean up stale state files (older than 7 days) ---
 find /tmp -name "ecoguilt-*" -mtime +7 -delete 2>/dev/null || true
