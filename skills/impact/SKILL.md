@@ -69,7 +69,17 @@ For the recommended model, look up its entry in the model cache by `id`, then ca
 - miles driven (400g CO2 per mile)
 - bottles of water (500ml each)
 
-## Step 4: Present the bill
+## Step 4: Re-read state before presenting
+
+The state file updates on every status line render. Since steps 1–3 consumed tokens (running bash commands), the file is now stale. Re-read it so the bill matches the status line:
+
+```bash
+cat "$STATE_FILE" 2>/dev/null || echo '{}'
+```
+
+Use these refreshed numbers for the bill below. Recalculate the recommended model's comparison against the updated token counts.
+
+## Step 5: Present the bill
 
 **Section 1 — what you used:**
 State the raw numbers one per line: tokens, kWh, CO2, water, cost. Then the visual comparisons (miles driven, bottles of water, lightbulb hours, etc). Each line should be a scene the reader can picture.
@@ -88,6 +98,8 @@ If the recommended model IS the current model (or more expensive), say so: "not 
 
 If `no_api_key` error: show the impact numbers, then add:
 "set NOTDIAMOND_API_KEY to see what a cheaper model would have saved. get a key at notdiamond.ai"
+
+**Footer:** Add a small note at the end: "*as of last tool use — the status line includes this response's tokens.*"
 
 **Tone:** Deadpan. The numbers do the talking. No softening, no "great job for checking!" — just the bill and what could have been different.
 

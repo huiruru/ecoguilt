@@ -161,7 +161,7 @@ These are estimates. CO2 varies by region and grid mix. Water varies by datacent
 - **Energy numbers are estimates, not measurements.** We infer energy from pricing. A $15/1M model isn't necessarily using 15x the watts of a $1/1M model — but it's the best proxy available without datacenter telemetry.
 - **Session cost is cumulative.** The `$X spent` figure includes everything since you opened Claude Code, across all model switches. There's no per-model breakdown in the status line (use `/impact` for that).
 - **Recommendation lags behind model switches.** Not Diamond's recommendation refreshes every 5 minutes and is based on your transcript, not your current model. If you just switched to a cheaper model, the recommendation may still suggest something even cheaper.
-- **`/impact` and the status line can briefly disagree.** The status line updates on every render; `/impact` reads the same state file but runs its own Not Diamond call if the cache is stale. They converge within one tool use.
+- **`/impact` re-reads state before presenting.** The skill re-reads the state file right before showing the bill, so its numbers match the status line. There may still be a tiny delta from the final render, but it's negligible.
 
 ## Files
 
