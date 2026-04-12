@@ -1,0 +1,12 @@
+[
+  {"id": "claude-opus-4-6",           "provider": "anthropic",  "display": "opus-4.6"},
+  {"id": "claude-opus-4-20250514",    "provider": "anthropic",  "display": "opus-4.0"},
+  {"id": "claude-sonnet-4-20250514",  "provider": "anthropic",  "display": "sonnet"},
+  {"id": "claude-3-5-haiku-20241022", "provider": "anthropic",  "display": "haiku-3.5"},
+  {"id": "claude-haiku-4-5-20251001",  "provider": "anthropic",  "display": "haiku-4.5"},
+  {"id": "gpt-5",                     "provider": "openai"},
+  {"id": "DeepSeek-R1",               "provider": "togetherai", "display": "deepseek-r1"},
+  {"id": "Meta-Llama-3.1-405B-Instruct-Turbo", "provider": "togetherai", "display": "llama-405b"},
+  {"id": "mistral-small-latest",      "provider": "mistral",    "display": "mistral-small"},
+  {"id": "gemini-2.5-flash",          "provider": "google"}
+]

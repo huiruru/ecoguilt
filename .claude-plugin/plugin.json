@@ -1,0 +1,12 @@
+{
+  "name": "ecoguilt",
+  "version": "1.0.0",
+  "description": "Track the environmental cost of your AI coding sessions.",
+  "author": {
+    "name": "Huiru"
+  },
+  "license": "MIT",
+  "keywords": ["environmental-impact", "sustainability", "tokens", "carbon"],
+  "skills": "./skills/",
+  "hooks": "./hooks/hooks.json"
+}

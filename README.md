@@ -1,0 +1,189 @@
+# Ecoguilt
+
+A Claude Code plugin that shows you what your AI coding session is costing the planet.
+
+Every token has a price; in electricity, CO2, and fresh water poured into datacenter cooling systems. Ecoguilt puts the real cost in the status line, the entire time you're working.
+
+## What It Does
+
+**Status line** — Always visible at the bottom of your terminal. Shows your session cost, a dynamically generated fact about environmental impact, and if you have a Not Diamond API key, how much a cheaper model would save.
+
+```
+$31.02 spent. this session left a lightbulb on in an empty room for 8.9 hours. (not diamond: gemini-2.5-flash would save $30.82 and 1.9 bottles of water)
+```
+
+**`/impact`** — On-demand detailed breakdown. Tokens, kWh, CO2, water, dollar cost. What you used vs what you could have used.
+
+**`/sync-models`** — Refresh the model cache from Not Diamond's API. Run this after editing `models.json`.
+
+## Architecture
+
+```mermaid
+graph TD
+    SL["statusline.sh<br/><i>fires on every render</i>"]
+    STATE["/tmp/ecoguilt-{session}.json<br/><i>single source of truth</i>"]
+    HOOK["refresh.sh<br/><i>PostToolUse hook</i>"]
+    IMPACT["/impact skill<br/><i>on-demand</i>"]
+    SYNC["/sync-models skill"]
+    HAIKU["haiku fact gen<br/><i>claude -p</i>"]
+    ND["not diamond<br/><i>recommend</i>"]
+
+    SL -- writes --> STATE
+    STATE -- reads --> HOOK
+    STATE -- reads --> IMPACT
+    STATE -- reads --> SYNC
+    HOOK -- background --> HAIKU
+    HOOK -- background --> ND
+```
+
+- **Status line** (`statusline.sh`) — The only component with access to token counts. Calculates energy incrementally (so model switches don't retroactively recalculate history), writes state, reads cached fact + recommendation, outputs one line. No background jobs.
+- **Hook** (`refresh.sh`) — Fires after every tool use. Reads state file, checks thresholds, kicks off Haiku fact generation and Not Diamond recommendation refresh in the background.
+- **`/impact` skill** — Reads state file and model cache, presents the detailed bill.
+- **`/sync-models` skill** — Fetches pricing from Not Diamond, validates models, builds the cache.
+
+## Install
+
+Clone the repo anywhere:
+
+```bash
+git clone https://github.com/huiruru/ecoguilt.git ~/ecoguilt
+```
+
+### Step 1: Status line
+
+Add to `~/.claude/settings.json`:
+
+```jsonc
+{
+  "statusLine": {
+    "type": "command",
+    "command": "bash ~/ecoguilt/scripts/statusline.sh"
+  }
+}
+```
+
+> Replace `~/ecoguilt` with wherever you cloned the repo. Use absolute paths if `~` doesn't resolve in your shell.
+
+### Step 2: Skills and hooks
+
+Launch Claude Code with the plugin flag:
+
+```bash
+claude --plugin-dir ~/ecoguilt
+```
+
+This registers the `/impact` and `/sync-models` skills and the PostToolUse hook that refreshes facts and recommendations.
+
+The status line can't be loaded from the plugin manifest (it's a settings-only feature), which is why step 1 is needed separately.
+
+### Verify
+
+The status line appears after ~100 tokens of conversation. Run `/impact` for a detailed breakdown.
+
+## Requirements
+
+- `bash`, `jq`, `curl` — that's it. No Python, no Node, no package managers.
+- `claude` CLI — used to generate status line facts via Haiku.
+- (Optional) `NOTDIAMOND_API_KEY` — Enables model routing recommendations. Get a key at [notdiamond.ai](https://notdiamond.ai). Without it, you still get the environmental impact numbers, just no "you could be using X instead" comparison.
+
+Set the key in `~/.claude/settings.json`:
+
+```json
+{
+  "env": {
+    "NOTDIAMOND_API_KEY": "sk-..."
+  }
+}
+```
+
+## Adding Models
+
+Edit `models.json` in the plugin root. Each entry just needs an `id` and `provider`:
+
+```json
+[
+  {"id": "claude-opus-4-6",      "provider": "anthropic"},
+  {"id": "gemini-2.5-flash",     "provider": "google"},
+  {"id": "gpt-5",                "provider": "openai"}
+]
+```
+
+Optional `display` field overrides the name shown in the status line:
+
+```json
+{"id": "Meta-Llama-3.1-405B-Instruct-Turbo", "provider": "togetherai", "display": "llama-405b"}
+```
+
+After editing, run `/sync-models` or:
+
+```bash
+bash scripts/sync-models.sh
+```
+
+## State & Caching
+
+Ecoguilt maintains a single source of truth: `/tmp/ecoguilt-{session}.json`. This file contains cumulative session metrics: token counts, energy (kWh), CO2 (g), water (ml), current model, and cost.
+
+The status line writes this on every render. `/impact` reads it. The numbers are always consistent.
+
+**Energy is tracked incrementally.** Each render calculates the delta tokens since the last render and applies the current model's energy rate. This means switching models mid-session (e.g. Opus → Haiku) correctly tracks energy — earlier tokens keep their original model's rate instead of being retroactively recalculated.
+
+**Background jobs** kick off after tool use (via the PostToolUse hook):
+- **Haiku fact** — Regenerates when tokens grow 50% since last generation. Cached until threshold is hit. A single Haiku call costs ~200 tokens (<$0.001), so the overhead is negligible.
+- **Not Diamond recommendation** — Refreshes every 5 minutes. Analyzes your transcript to suggest a cheaper model.
+
+**Model cache** (`/tmp/ecoguilt-models.json`) is built once at startup from `models.json` + Not Diamond's API. Run `/sync-models` to refresh after editing `models.json`.
+
+**Cleanup** — Stale state files in `/tmp` older than 7 days are automatically removed.
+
+## How Energy Is Estimated
+
+There is no public API for "kWh per token." We estimate from pricing — a model that costs 10x more per token is assumed to use roughly 10x the compute, and therefore roughly 10x the energy. The reference point is Claude Opus 4.0 at $15/$75 per 1M tokens = 0.0000012/0.0000048 kWh per token.
+
+From kWh:
+- **CO2**: kWh × 0.39 × 1000 grams (US grid average)
+- **Water**: kWh × 1800 ml (datacenter cooling estimate)
+
+These are estimates. CO2 varies by region and grid mix. Water varies by datacenter location and cooling method.
+
+## Understanding the Numbers
+
+**Session cost** — Cumulative since you opened Claude Code. Includes all models used during the session.
+
+**Model recommendation** — Based on your transcript, not your current model. Not Diamond analyzes what you're doing and suggests the cheapest model that could handle it. Switching models doesn't change the recommendation; the task does. Refreshes every 5 minutes.
+
+**Energy per token** — Varies by model. Lower effort settings don't change the per-token rate, but produce fewer output tokens, so cost and energy drop.
+
+## Gotchas
+
+- **New models need syncing.** If Claude Code updates to a model not in `models.json`, the status line falls back to default energy rates. Add the model to `models.json` and run `/sync-models`.
+- **First render is slow.** On first use, `sync-models.sh` runs synchronously to build the model cache. After that, it's cached.
+- **Energy numbers are estimates, not measurements.** We infer energy from pricing. A $15/1M model isn't necessarily using 15x the watts of a $1/1M model — but it's the best proxy available without datacenter telemetry.
+- **Session cost is cumulative.** The `$X spent` figure includes everything since you opened Claude Code, across all model switches. There's no per-model breakdown in the status line (use `/impact` for that).
+- **Recommendation lags behind model switches.** Not Diamond's recommendation refreshes every 5 minutes and is based on your transcript, not your current model. If you just switched to a cheaper model, the recommendation may still suggest something even cheaper.
+- **`/impact` and the status line can briefly disagree.** The status line updates on every render; `/impact` reads the same state file but runs its own Not Diamond call if the cache is stale. They converge within one tool use.
+
+## Files
+
+```
+ecoguilt/
+  models.json                <- user-editable model list
+  hooks/
+    hooks.json               <- PostToolUse hook config
+  scripts/
+    statusline.sh            <- status line (calculate + render)
+    refresh.sh               <- hook script (background fact + recommendation)
+    recommend.sh             <- not diamond API client
+    sync-models.sh           <- fetch pricing, build model cache
+    fact-prompt.txt          <- system prompt for haiku fact generation
+  skills/
+    impact/SKILL.md          <- /impact skill
+    sync-models/SKILL.md     <- /sync-models skill
+  .claude-plugin/
+    plugin.json              <- plugin manifest
+  CONTRIBUTING.md            <- contributor guide
+```
+
+## License
+
+MIT
