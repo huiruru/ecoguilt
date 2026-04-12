@@ -3,6 +3,7 @@ name: impact
 description: Show the environmental cost of this coding session — CO2 emitted, water consumed, and what a smarter model choice would have saved.
 user-invocable: true
 allowed-tools: Bash Read
+model: haiku
 ---
 
 Show the environmental impact of this coding session.

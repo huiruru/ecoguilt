@@ -3,6 +3,7 @@ name: sync-models
 description: Refresh the ecoguilt model cache — fetch latest pricing from Not Diamond and validate model availability.
 user-invocable: true
 allowed-tools: Bash Read
+model: haiku
 ---
 
 Sync the ecoguilt model list with Not Diamond's API.
