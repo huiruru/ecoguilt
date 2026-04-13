@@ -94,13 +94,20 @@ Do NOT use abstract comparisons like grams of coal, ml of gasoline, or "a tree n
 
 IMPORTANT: each comparison must describe a DIFFERENT resource. Do not repeat the same resource in two different ways (e.g. "2 bottles of water" and "half a day's drinking water" are the same thing — pick one). One line per resource: one for CO2, one for water, one for energy.
 
-**Section 2 — what you could have used:**
-If Not Diamond returned a recommendation different from the current model, show:
+**Section 2 — not diamond's verdict:**
+Not Diamond optimizes for the cheapest model that can handle the task accurately. Its recommendation overrides naive cost comparison — if it suggests a more expensive model, that means accuracy requires it for this task.
+
+If the recommended model is **cheaper** than current:
 - "not diamond says: [display name] could have handled this."
-- The same metrics recalculated for that model
+- Show the same metrics recalculated for that model using pricing ratio scaling
 - The delta: "that's Xg less CO2. X fewer bottles of water. $X cheaper."
 
-If the recommended model IS the current model (or more expensive), say so: "not diamond agrees: this task needed [current model]."
+If the recommended model is **more expensive** than current:
+- "not diamond says: [display name] would be more accurate. that's a $X tradeoff."
+- Show the metrics recalculated for that model
+- The delta: "that's Xg more CO2. X more bottles of water. $X more expensive — but not diamond thinks this task needs it."
+
+If the recommended model IS the current model, say: "not diamond agrees: [current model] was the right call."
 
 If `no_api_key` error: show the impact numbers, then add:
 "set NOTDIAMOND_API_KEY to see what a cheaper model would have saved. get a key at notdiamond.ai"

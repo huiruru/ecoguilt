@@ -123,7 +123,9 @@ if [ -f "$RECOMMEND_FILE" ] && [ -f "$MODEL_CACHE" ]; then
       CUR_AVG_PRICE=$(echo "scale=6; ($CUR_IN_PRICE + $CUR_OUT_PRICE) / 2" | bc)
       REC_AVG_PRICE=$(echo "scale=6; ($REC_IN_PRICE + $REC_OUT_PRICE) / 2" | bc)
       REC_COST=$(printf "%.2f" "$(echo "scale=4; $CUR_COST * $REC_AVG_PRICE / $CUR_AVG_PRICE" | bc)")
+
       if [ "$(echo "$REC_COST < $CUR_COST" | bc)" = "1" ]; then
+        # Cheaper — show savings
         SAVED_COST=$(printf "%.2f" "$(echo "scale=4; $CUR_COST - $REC_COST" | bc)")
         SAVED_COST=$(echo "$SAVED_COST" | sed 's/^\./0./')
 
@@ -138,6 +140,11 @@ if [ -f "$RECOMMEND_FILE" ] && [ -f "$MODEL_CACHE" ]; then
         elif [ "$SAVED_WATER" -gt 0 ]; then
           SAVINGS="${SAVINGS} and ${SAVED_WATER}ml of water"
         fi
+      else
+        # More expensive — not diamond thinks accuracy requires it, flag as tradeoff
+        EXTRA_COST=$(printf "%.2f" "$(echo "scale=4; $REC_COST - $CUR_COST" | bc)")
+        EXTRA_COST=$(echo "$EXTRA_COST" | sed 's/^\./0./')
+        SAVINGS="not diamond: ${RECOMMEND} would be more accurate (+\$${EXTRA_COST})"
       fi
     fi
   fi
