@@ -118,12 +118,16 @@ if [ -f "$RECOMMEND_FILE" ] && [ -f "$MODEL_CACHE" ]; then
       REC_IN_KWH=$(echo "$REC_DATA" | jq -r '.input_kwh_per_token')
       REC_OUT_KWH=$(echo "$REC_DATA" | jq -r '.output_kwh_per_token')
 
-      REC_COST=$(printf "%.2f" "$(echo "scale=4; $INPUT_TOKENS * $REC_IN_PRICE / 1000000 + $OUTPUT_TOKENS * $REC_OUT_PRICE / 1000000" | bc)")
+      # Scale actual session cost by pricing ratio — more accurate than token-based estimate
+      # because context caching means token counts don't reflect true cost
+      CUR_AVG_PRICE=$(echo "scale=6; ($CUR_IN_PRICE + $CUR_OUT_PRICE) / 2" | bc)
+      REC_AVG_PRICE=$(echo "scale=6; ($REC_IN_PRICE + $REC_OUT_PRICE) / 2" | bc)
+      REC_COST=$(printf "%.2f" "$(echo "scale=4; $CUR_COST * $REC_AVG_PRICE / $CUR_AVG_PRICE" | bc)")
       if [ "$(echo "$REC_COST < $CUR_COST" | bc)" = "1" ]; then
         SAVED_COST=$(printf "%.2f" "$(echo "scale=4; $CUR_COST - $REC_COST" | bc)")
         SAVED_COST=$(echo "$SAVED_COST" | sed 's/^\./0./')
 
-        REC_TOTAL_KWH=$(echo "scale=10; $INPUT_TOKENS * $REC_IN_KWH + $OUTPUT_TOKENS * $REC_OUT_KWH" | bc)
+        REC_TOTAL_KWH=$(echo "scale=10; $TOTAL_KWH * $REC_AVG_PRICE / $CUR_AVG_PRICE" | bc)
         REC_WATER=$(printf "%.0f" "$(echo "scale=2; $REC_TOTAL_KWH * 1800" | bc)")
         SAVED_WATER=$((WATER_ML - REC_WATER))
 
