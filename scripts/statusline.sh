@@ -118,7 +118,7 @@ elif [ "$METRIC_IDX" = "1" ]; then
   WATER_BOTTLES=$(clean "$(echo "scale=1; $WATER_ML / 500" | bc)")
   ENV_METRIC="${WATER_BOTTLES}b water"
 else
-  KWH_FMT=$(printf "%.4f" "$TOTAL_KWH")
+  KWH_FMT=$(printf "%.3f" "$TOTAL_KWH")
   ENV_METRIC="${KWH_FMT} kWh"
 fi
 
@@ -234,7 +234,7 @@ CACHE_FMT=""
 CACHE_TOTAL=$((TOTAL_CACHE_READ + TOTAL_CACHE_WRITE))
 if (( CACHE_TOTAL > 0 )); then
   CACHE_PCT=$(printf "%.0f" "$(echo "scale=4; $TOTAL_CACHE_READ * 100 / $CACHE_TOTAL" | bc)")
-  CACHE_FMT=" cache:${CACHE_PCT}%"
+  CACHE_FMT=" hit:${CACHE_PCT}%"
 fi
 
 TOKEN_DETAIL="in:${IN_FMT} out:${OUT_FMT}"
@@ -253,4 +253,4 @@ elif [ -n "$RECOMMEND" ]; then
   SUFFIX=" (nd: use ${RECOMMEND})"
 fi
 
-echo "\$${CUR_COST} ${TOKEN_DETAIL}${CACHE_FMT}${CTX_FMT} · ${ENV_METRIC} · ${FACT}${SUFFIX}${ANOMALY_FMT}"
+echo "\$${CUR_COST} ${TOKEN_DETAIL}${CACHE_FMT}${CTX_FMT} · ${ENV_METRIC}; ${FACT}${SUFFIX}${ANOMALY_FMT}"

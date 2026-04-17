@@ -103,8 +103,9 @@ if (( PREV_TURN >= 3 )) && [ -f "$HISTORY_FILE" ]; then
     | jq -r '.turn_output_tokens // 0' \
     | awk '{sum+=$1} END {if (NR>0) print int(sum/NR); else print 0}')
 
-  # input_spike: user sent >3x avg input (large paste or dense prompt)
-  if (( SESSION_AVG_IN > 0 )) && (( DELTA_IN > SESSION_AVG_IN * 3 )); then
+  # input_spike: user sent >3x avg input AND at least 500 tokens absolute.
+  # Floor prevents false positives when session avg is low from many short messages.
+  if (( SESSION_AVG_IN > 0 )) && (( DELTA_IN > SESSION_AVG_IN * 3 )) && (( DELTA_IN > 500 )); then
     ANOMALY_TYPES+=("input_spike")
   fi
 

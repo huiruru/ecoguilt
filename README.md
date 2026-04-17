@@ -6,14 +6,14 @@ Every token has a price; in electricity, CO2, and fresh water poured into datace
 
 ## What It Does
 
-**Status line** — Always visible at the bottom of your terminal. Shows session cost, token counts, cache efficiency, context fill, CO₂, a dynamically generated environmental fact, and (with a Not Diamond API key) a model recommendation.
+**Status line** — Always visible at the bottom of your terminal. Shows session cost, token counts, cache hit rate, context fill, CO₂, a dynamically generated environmental fact, and (with a Not Diamond API key) a model recommendation.
 
 ```
-$3.90 in:16k out:54k cache:61% ctx:52% · 21.7g CO₂ · this session left a lightbulb on in an empty room for 50 minutes. (nd: opus-4.6 would be more accurate +$2.60)
+$3.90 in:16k out:54k hit:61% ctx:52% · 21.7g CO₂; this session left a lightbulb on in an empty room for 50 minutes. (nd: opus-4.6 would be more accurate +$2.60)
 ```
 
 - **`in/out`** — cumulative input and output tokens this session
-- **`cache`** — prompt cache efficiency: % of cache activity that was reads (cheap) vs writes (expensive). Higher is better.
+- **`hit`** — cache hit rate: % of cache activity that was reads (cheap) vs writes (expensive). Higher is better.
 - **`ctx`** — how full the context window is
 - **`nd:`** — Not Diamond's model recommendation, abbreviated
 
@@ -175,7 +175,7 @@ These are estimates. CO2 varies by region and grid mix. Water varies by datacent
 
 **Session cost** — Cumulative since you opened Claude Code. Includes all models used during the session.
 
-**Cache efficiency** — The ratio of cache reads to total cache activity (reads + writes). A high percentage means the prompt cache is working well: most tokens are being served from cache at ~10× cheaper rates rather than being written fresh. It drops when the cache breaks (model switch, system prompt change, TTL expiry).
+**Cache hit rate** — The ratio of cache reads to total cache activity (reads + writes). A high percentage means the prompt cache is working well: most tokens are being served from cache at ~10× cheaper rates rather than being written fresh. It drops when the cache breaks (model switch, system prompt change, TTL expiry).
 
 **Model recommendation** — Based on your transcript, not your current model. Not Diamond analyzes what you're doing and suggests the cheapest model that could handle it accurately. Switching models doesn't change the recommendation; the task does. Refreshes every 5 minutes.
 
