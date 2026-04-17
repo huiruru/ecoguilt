@@ -153,11 +153,11 @@ One line per session. Mark sessions that had any anomalous turn with `⚠`. Use 
 2026-04-14  myapp       $1.14   6.3g  23k tok   haiku-4.5
 ```
 
-For the anomaly flag: check if any record in history.jsonl for that session_id has a non-null anomaly field:
+For the anomaly flag: check if any record in history.jsonl for that session_id has a non-null anomaly field. Use `type == "object"` to handle old records where anomaly was serialized as the string `"null"` rather than JSON null:
 
 ```bash
 SESSION_ID="<session_id>"
-HAS_ANOMALY=$(grep "\"session_id\":\"${SESSION_ID}\"" "$HOME/.ecoguilt/history.jsonl" | jq -r 'select(.anomaly != null) | .session_id' | head -1)
+HAS_ANOMALY=$(grep "\"session_id\":\"${SESSION_ID}\"" "$HOME/.ecoguilt/history.jsonl" | jq -r 'select(.anomaly | type == "object") | .session_id' | head -1)
 ```
 
 **Footer:** `*session costs update at the end of each turn. the current session's live totals are always included.*`

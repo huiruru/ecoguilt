@@ -109,8 +109,9 @@ if (( PREV_TURN >= 3 )) && [ -f "$HISTORY_FILE" ]; then
     ANOMALY_TYPES+=("input_spike")
   fi
 
-  # output_spike: AI generated >3x avg output (very verbose response)
-  if (( SESSION_AVG_OUT > 0 )) && (( DELTA_OUT > SESSION_AVG_OUT * 3 )); then
+  # output_spike: AI generated >3x avg output AND at least 500 tokens absolute.
+  # Floor prevents false positives when session avg is low from many short replies.
+  if (( SESSION_AVG_OUT > 0 )) && (( DELTA_OUT > SESSION_AVG_OUT * 3 )) && (( DELTA_OUT > 500 )); then
     ANOMALY_TYPES+=("output_spike")
   fi
 
