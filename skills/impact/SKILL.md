@@ -112,6 +112,28 @@ If the recommended model IS the current model, say: "not diamond agrees: [curren
 If `no_api_key` error: show the impact numbers, then add:
 "set NOTDIAMOND_API_KEY to see what a cheaper model would have saved. get a key at notdiamond.ai"
 
+**Section 3 — anomalies this session:**
+
+Read anomalous turns from `~/.ecoguilt/history.jsonl` for the current session:
+
+```bash
+grep "\"session_id\":\"${SESSION_ID}\"" "$HOME/.ecoguilt/history.jsonl" 2>/dev/null | jq -c 'select(.anomaly != null)' | sort -t'"' -k2
+```
+
+If any exist, show each one. Use the directional breakdown from the anomaly record:
+```
+⚠ turn 4  output_spike  out:8,234 / in:412   +$0.18  "write a comprehensive test suite for all..."
+⚠ turn 7  input_spike   in:9,102 / out:380   +$0.09  "paste the full logs below:"
+⚠ turn 9  cache_break   82% → 12%            +$0.31  "can you refactor this entire module..."
+```
+
+For `output_spike`/`input_spike`: show `turn_output_tokens` and `turn_input_tokens` from the anomaly object.
+For `cache_break`: show `prev_cache_efficiency` → `turn_cache_efficiency` as percentages.
+
+If none: "no anomalies this session."
+
+If `~/.ecoguilt/history.jsonl` doesn't exist yet: omit the section silently (Stop hook hasn't fired yet).
+
 **Footer:** Add a small note at the end: "*as of last tool use — the status line includes this response's tokens.*"
 
 **Tone:** Deadpan. The numbers do the talking. No softening, no "great job for checking!" — just the bill and what could have been different.

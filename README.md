@@ -17,7 +17,9 @@ $3.90 in:16k out:54k cache:61% ctx:52% · 21.7g CO₂ · this session left a lig
 - **`ctx`** — how full the context window is
 - **`nd:`** — Not Diamond's model recommendation, abbreviated
 
-**`/impact`** — On-demand detailed breakdown. Tokens, kWh, CO2, water, dollar cost. What you used vs what you could have used.
+**`/impact`** — On-demand detailed breakdown for the current session. Tokens, kWh, CO2, water, dollar cost, Not Diamond's verdict, and any anomalous turns detected.
+
+**`/history`** — Cumulative totals across all sessions: today, this week, all time. Session log with per-session metrics. Weekly anomaly summary.
 
 **`/sync-models`** — Refresh the model cache from Not Diamond's API. Run this after editing `models.json`.
 
@@ -26,17 +28,27 @@ $3.90 in:16k out:54k cache:61% ctx:52% · 21.7g CO₂ · this session left a lig
 ```mermaid
 graph TD
     SL["statusline.sh<br/><i>fires on every render</i>"]
-    STATE["/tmp/ecoguilt-{session}.json<br/><i>single source of truth</i>"]
+    STATE["/tmp/ecoguilt-{session}.json<br/><i>session state (volatile)</i>"]
+    ANOMALY["/tmp/ecoguilt-{session}-anomaly.txt<br/><i>spike notification</i>"]
     HOOK["refresh.sh<br/><i>PostToolUse hook</i>"]
-    IMPACT["/impact skill<br/><i>on-demand</i>"]
+    FLUSH["flush.sh<br/><i>Stop hook</i>"]
+    HISTORY["~/.ecoguilt/history.jsonl<br/><i>persistent history</i>"]
+    IMPACT["/impact skill<br/><i>current session</i>"]
+    HIST_SKILL["/history skill<br/><i>cross-session totals + log</i>"]
     SYNC["/sync-models skill"]
     HAIKU["haiku fact gen<br/><i>claude -p</i>"]
     ND["not diamond<br/><i>recommend</i>"]
 
     SL -- writes --> STATE
+    SL -- reads --> ANOMALY
     STATE -- reads --> HOOK
     STATE -- reads --> IMPACT
+    STATE -- reads --> FLUSH
     STATE -- reads --> SYNC
+    FLUSH -- appends --> HISTORY
+    FLUSH -- writes/clears --> ANOMALY
+    HISTORY -- reads --> IMPACT
+    HISTORY -- reads --> HIST_SKILL
     HOOK -- background --> HAIKU
     HOOK -- background --> ND
 ```
@@ -127,11 +139,19 @@ bash scripts/sync-models.sh
 
 ## State & Caching
 
-Ecoguilt maintains a single source of truth: `/tmp/ecoguilt-{session}.json`. This file contains cumulative session metrics: token counts, energy (kWh), CO2 (g), water (ml), current model, and cost.
+**Session state** (`/tmp/ecoguilt-{session}.json`) — cumulative metrics for the active session: token counts, energy (kWh), CO2 (g), water (ml), model, cost, cache totals. Written by the status line on every render. Volatile — cleared on reboot.
 
-The status line writes this on every render. `/impact` reads it. The numbers are always consistent.
+**Persistent history** (`~/.ecoguilt/history.jsonl`) — append-only JSONL. One record per turn, written by the `Stop` hook via `flush.sh`. Survives reboots. Deduplicated by `(session_id, turn)` at read time — last occurrence wins. Each record includes per-turn deltas and anomaly data alongside session cumulative totals.
 
 **Energy is tracked incrementally.** Each render calculates the delta tokens since the last render and applies the current model's energy rate. This means switching models mid-session (e.g. Opus → Haiku) correctly tracks energy — earlier tokens keep their original model's rate instead of being retroactively recalculated.
+
+**Anomaly detection** runs in `flush.sh` on every Stop hook. Requires ≥3 prior turns to establish a session baseline. Three types:
+- **input_spike** — input tokens >3× session average; you sent a large paste or dense prompt
+- **output_spike** — output tokens >3× session average; the AI generated a very verbose response
+- **cache_break** — cache efficiency dropped >25 points; you're paying full price instead of cached rates
+- **cost_spike** — turn cost >3× session average cost per turn
+
+When detected, `flush.sh` writes `/tmp/ecoguilt-{session}-anomaly.txt` so the status line can show `⚠ output_spike` on the next render. Details (including input/output breakdown and efficiency drop) appear in `/impact` and `/history`.
 
 **Background jobs** kick off after tool use (via the PostToolUse hook):
 - **Haiku fact** — Regenerates when tokens grow 50% since last generation. Cached until threshold is hit. A single Haiku call costs ~200 tokens (<$0.001), so the overhead is negligible.
@@ -176,15 +196,17 @@ These are estimates. CO2 varies by region and grid mix. Water varies by datacent
 ecoguilt/
   models.json                <- user-editable model list
   hooks/
-    hooks.json               <- PostToolUse hook config
+    hooks.json               <- PostToolUse + Stop hook config
   scripts/
     statusline.sh            <- status line (calculate + render)
-    refresh.sh               <- hook script (background fact + recommendation)
+    flush.sh                 <- Stop hook: persist history, detect anomalies
+    refresh.sh               <- PostToolUse hook: background fact + recommendation
     recommend.sh             <- not diamond API client
     sync-models.sh           <- fetch pricing, build model cache
     fact-prompt.txt          <- system prompt for haiku fact generation
   skills/
-    impact/SKILL.md          <- /impact skill
+    impact/SKILL.md          <- /impact skill (current session)
+    history/SKILL.md         <- /history skill (cross-session totals + log)
     sync-models/SKILL.md     <- /sync-models skill
   .claude-plugin/
     plugin.json              <- plugin manifest

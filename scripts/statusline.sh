@@ -66,6 +66,7 @@ SESSION_ID="${INPUT_SESSION_ID:-${CLAUDE_SESSION_ID:-unknown}}"
 STATE_FILE="/tmp/ecoguilt-${SESSION_ID}.json"
 RECOMMEND_FILE="/tmp/ecoguilt-${SESSION_ID}-recommend.json"
 FACT_FILE="/tmp/ecoguilt-${SESSION_ID}-fact.txt"
+ANOMALY_FILE="/tmp/ecoguilt-${SESSION_ID}-anomaly.txt"
 
 # --- Incremental tracking across model switches ---
 # Energy and cache tokens must accumulate across model switches.
@@ -238,6 +239,12 @@ fi
 
 TOKEN_DETAIL="in:${IN_FMT} out:${OUT_FMT}"
 
+# --- Anomaly notification from last flush ---
+ANOMALY_FMT=""
+if [ -f "$ANOMALY_FILE" ]; then
+  ANOMALY_FMT=" ⚠ $(cat "$ANOMALY_FILE")"
+fi
+
 # --- Output ---
 SUFFIX=""
 if [ -n "$SAVINGS" ]; then
@@ -246,4 +253,4 @@ elif [ -n "$RECOMMEND" ]; then
   SUFFIX=" (nd: use ${RECOMMEND})"
 fi
 
-echo "\$${CUR_COST} ${TOKEN_DETAIL}${CACHE_FMT}${CTX_FMT} · ${ENV_METRIC} · ${FACT}${SUFFIX}"
+echo "\$${CUR_COST} ${TOKEN_DETAIL}${CACHE_FMT}${CTX_FMT} · ${ENV_METRIC} · ${FACT}${SUFFIX}${ANOMALY_FMT}"
